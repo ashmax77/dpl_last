@@ -1,0 +1,23 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "dlp-0712",
+                    "appId": "1:768920670018:android:5f3c9a69d5aa00d7a1c2db",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "dlp-0712",
+                    "configurations": {
+                        "android": "1:768920670018:android:5f3c9a69d5aa00d7a1c2db",
+                        "ios": "1:768920670018:ios:0b534613576f7cc0a1c2db",
+                        "web": "1:768920670018:web:018c416def1044b4a1c2db"
+                    }
+                }
+            }
+        }
+    }
+}

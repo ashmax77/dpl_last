@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "768920670018",
+    "project_id": "dlp-0712",
+    "storage_bucket": "dlp-0712.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:768920670018:android:5f3c9a69d5aa00d7a1c2db",
+        "android_client_info": {
+          "package_name": "com.example.dlp_last"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcr3ivpdda0znYYgi1dExyMIA1JV2XpaQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
