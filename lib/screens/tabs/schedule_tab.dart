@@ -18,9 +18,43 @@ class _SchedulePageState extends State<SchedulePage> {
   bool _isEditing = false;
   String? _editingScheduleId;
   String _scheduleName = '';
+  String? _role;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRole();
+  }
+
+  Future<void> _fetchRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _role = 'user';
+        _loading = false;
+      });
+      return;
+    }
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    setState(() {
+      _role = userDoc.data()?['role'] ?? 'user';
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_role != 'admin') {
+      return const Scaffold(
+        body: Center(child: Text('Access denied: Admins only.')),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Door Access Schedule'),

@@ -33,11 +33,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
+  Future<bool> _isFirstUser() async {
+    final users = await FirebaseFirestore.instance.collection('users').get();
+    return users.docs.isEmpty;
+  }
+
   Future<void> registerUser(String email, String password) async {
     try {
       // Create user in Firebase Authentication
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Determine role
+      String role = await _isFirstUser() ? 'admin' : 'user';
 
       // Save additional user details to Firestore
       await FirebaseFirestore.instance
@@ -46,12 +54,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
           .set({
         'username': _usernameController.text.trim(),
         'email': email,
-        'password':password,
+        'password': password,
         'createdAt': FieldValue.serverTimestamp(),
         'userId': userCredential.user!.uid,
+        'role': role,
       });
 
-      print("User registered: ${userCredential.user!.email}");
+      print("User registered: ${userCredential.user!.email}, role: $role");
     } catch (e) {
       print("Error: $e");
       throw e; // Re-throw the error to be caught by _submitForm

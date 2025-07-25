@@ -5,8 +5,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
+  Future<Widget> _buildContent(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Not logged in'));
+    }
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final role = userDoc.data()?['role'] ?? 'user';
+    if (role != 'admin') {
+      return const Center(child: Text('Access denied: Admins only.'));
+    }
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
@@ -124,6 +133,24 @@ class HistoryPage extends StatelessWidget {
             );
           },
         );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Widget>(
+      future: _buildContent(context),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasData) {
+          return Scaffold(body: snapshot.data!);
+        }
+        return const Scaffold(body: Center(child: Text('Error loading page')));
       },
     );
   }
