@@ -17,6 +17,7 @@ class _LoginPageState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _loginError;
 
   @override
   void initState() {
@@ -31,6 +32,16 @@ class _LoginPageState extends State<LoginScreen> {
         });
       }
     });
+    _emailController.addListener(_clearError);
+    _passwordController.addListener(_clearError);
+  }
+
+  void _clearError() {
+    if (_loginError != null) {
+      setState(() {
+        _loginError = null;
+      });
+    }
   }
 
   void _togglePasswordVisibility() {
@@ -47,30 +58,16 @@ class _LoginPageState extends State<LoginScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-
         if (mounted) {
           setState(() => _isLoading = false);
           // Navigation will be handled by AuthWrapper
         }
       } catch (e) {
         if (mounted) {
-          setState(() => _isLoading = false);
-          // Show error dialog
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Error'),
-                content: Text(e.toString()),
-                actions: <Widget>[
-                  TextButton(
-                    child: const Text('OK'),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              );
-            },
-          );
+          setState(() {
+            _isLoading = false;
+            _loginError = e.toString().replaceFirst('Exception: ', '');
+          });
         }
       }
     }
@@ -99,6 +96,30 @@ class _LoginPageState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
+                if (_loginError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _loginError!,
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const FlutterLogo(size: 100),
                 const SizedBox(height: 40),
                 TextFormField(

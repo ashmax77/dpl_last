@@ -133,6 +133,47 @@ class UserService {
         throw Exception('User is already logged in on another device');
       }
 
+      // Get user data
+      final userDoc = await _firestore.collection('users').doc(userCredential.user!.uid).get();
+      final userData = userDoc.data();
+      final isAdmin = userData?['firstUser'] == true || userData?['role'] == 'admin';
+
+      // If not admin, check schedule
+      if (!isAdmin) {
+        final now = DateTime.now();
+        final weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        final today = weekDays[now.weekday - 1];
+        final schedulesSnapshot = await _firestore
+            .collection('User-schedule')
+            .where('userId', isEqualTo: userCredential.user!.uid)
+            .where('isActive', isEqualTo: true)
+            .get();
+        bool allowed = false;
+        List<String> allowedTimes = [];
+        for (final doc in schedulesSnapshot.docs) {
+          final data = doc.data();
+          final List days = data['days'] ?? [];
+          if (!days.contains(today)) continue;
+          final startParts = (data['startTime'] as String).split(':');
+          final endParts = (data['endTime'] as String).split(':');
+          final start = TimeOfDay(hour: int.parse(startParts[0]), minute: int.parse(startParts[1]));
+          final end = TimeOfDay(hour: int.parse(endParts[0]), minute: int.parse(endParts[1]));
+          allowedTimes.add('${_formatTime(start)} - ${_formatTime(end)}');
+          final nowTime = TimeOfDay(hour: now.hour, minute: now.minute);
+          if (_isTimeInRange(nowTime, start, end)) {
+            allowed = true;
+            break;
+          }
+        }
+        if (!allowed) {
+          await _auth.signOut();
+          String timesMsg = allowedTimes.isNotEmpty
+              ? '\nYour access times today: ${allowedTimes.join(', ')}'
+              : '\n(No access scheduled for today)';
+          throw Exception('You can only log in during your scheduled access time.' + timesMsg);
+        }
+      }
+
       // Update user status
       await _firestore.collection('users').doc(userCredential.user!.uid).update({
         'isOnline': true,
@@ -144,6 +185,22 @@ class UserService {
       print("Login error: $e");
       throw e;
     }
+  }
+
+  static bool _isTimeInRange(TimeOfDay now, TimeOfDay start, TimeOfDay end) {
+    final nowMinutes = now.hour * 60 + now.minute;
+    final startMinutes = start.hour * 60 + start.minute;
+    final endMinutes = end.hour * 60 + end.minute;
+    if (startMinutes <= endMinutes) {
+      return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+    } else {
+      // Overnight schedule (e.g., 22:00-06:00)
+      return nowMinutes >= startMinutes || nowMinutes <= endMinutes;
+    }
+  }
+
+  static String _formatTime(TimeOfDay t) {
+    return t.hour.toString().padLeft(2, '0') + ':' + t.minute.toString().padLeft(2, '0');
   }
 
   // Logout user

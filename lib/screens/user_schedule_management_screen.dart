@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../services/user_service.dart';
 
-class SchedulePage extends StatefulWidget {
-  const SchedulePage({super.key});
+class UserScheduleManagementScreen extends StatefulWidget {
+  final String userId;
+  final String username;
+  const UserScheduleManagementScreen({super.key, required this.userId, required this.username});
 
   @override
-  State<SchedulePage> createState() => _SchedulePageState();
+  State<UserScheduleManagementScreen> createState() => _UserScheduleManagementScreenState();
 }
 
-class _SchedulePageState extends State<SchedulePage> {
+class _UserScheduleManagementScreenState extends State<UserScheduleManagementScreen> {
   final _formKey = GlobalKey<FormState>();
   TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay _endTime = const TimeOfDay(hour: 17, minute: 0);
@@ -19,46 +19,12 @@ class _SchedulePageState extends State<SchedulePage> {
   bool _isEditing = false;
   String? _editingScheduleId;
   String _scheduleName = '';
-  String? _role;
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchRole();
-  }
-
-  Future<void> _fetchRole() async {
-    try {
-      final isAdmin = await UserService.isAdmin();
-      setState(() {
-        _role = isAdmin ? 'admin' : 'user';
-        _loading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _role = 'user';
-        _loading = false;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_role != 'admin') {
-      return const Scaffold(
-        body: Center(child: Text('Access denied: Admins only.')),
-      );
-    }
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: Text('Schedules for ${widget.username}'),
       ),
       body: Column(
         children: [
@@ -239,163 +205,53 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   Widget _buildSchedulesList() {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return const Center(child: Text('Not logged in'));
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('User-schedule')
+          .where('userId', isEqualTo: widget.userId)
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
 
-    if (_role == 'admin') {
-      // Admin: show all schedules with user info
-      return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('User-schedule')
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No access schedules yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap the + button to create one',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final schedules = snapshot.data!.docs;
-
-          return ListView.builder(
-            itemCount: schedules.length,
-            padding: const EdgeInsets.all(16),
-            itemBuilder: (context, index) {
-              final schedule = schedules[index];
-              final data = schedule.data() as Map<String, dynamic>;
-              final scheduleUserId = data['userId'] ?? '';
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(scheduleUserId).get(),
-                builder: (context, userSnapshot) {
-                  String userLabel = 'Unknown user';
-                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                    final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                    userLabel = userData['username'] ?? userData['email'] ?? scheduleUserId;
-                  }
-                  return Card(
-                    elevation: 2,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              data['name'] ?? 'Unnamed Schedule',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          Switch(
-                            value: data['isActive'] ?? true,
-                            onChanged: null, // Admin cannot toggle here
-                          ),
-                        ],
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('User: $userLabel', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.calendar_today, size: 16),
-                              const SizedBox(width: 8),
-                              Text((data['days'] as List).join(', ')),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.access_time, size: 16),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${_formatTimeString(data['startTime'])} - ${_formatTimeString(data['endTime'])}',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
+                const SizedBox(height: 16),
+                const Text(
+                  'No access schedules yet',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tap the + button to create one',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
           );
-        },
-      );
-    } else {
-      // Non-admin: show only own schedules
-      return StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('User-schedule')
-            .where('userId', isEqualTo: userId)
-            .orderBy('createdAt', descending: true)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
+        }
 
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No access schedules yet',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap the + button to create one',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
-            padding: const EdgeInsets.all(16),
-            itemBuilder: (context, index) {
-              final schedule = snapshot.data!.docs[index];
-              final data = schedule.data() as Map<String, dynamic>;
-
-              return Card(
+        return ListView.builder(
+          itemCount: snapshot.data!.docs.length,
+          padding: const EdgeInsets.all(16),
+          itemBuilder: (context, index) {
+            final schedule = snapshot.data!.docs[index];
+            final data = schedule.data() as Map<String, dynamic>;
+            final isActive = data['isActive'] ?? true;
+            final isFaded = !isActive;
+            return Opacity(
+              opacity: isFaded ? 0.5 : 1.0,
+              child: Card(
                 elevation: 2,
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
@@ -412,7 +268,7 @@ class _SchedulePageState extends State<SchedulePage> {
                         ),
                       ),
                       Switch(
-                        value: data['isActive'] ?? true,
+                        value: isActive,
                         onChanged: (value) => _toggleSchedule(schedule.id, value),
                       ),
                     ],
@@ -420,6 +276,8 @@ class _SchedulePageState extends State<SchedulePage> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (!isActive)
+                        const Text('Inactive', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Row(
                         children: [
@@ -438,6 +296,14 @@ class _SchedulePageState extends State<SchedulePage> {
                           ),
                         ],
                       ),
+                      if (data['lastToggledBy'] != null && data['lastToggledAt'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Last toggled by: ${data['lastToggledBy']} at ${_formatTimestamp(data['lastToggledAt'])}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
                     ],
                   ),
                   trailing: PopupMenuButton(
@@ -452,40 +318,38 @@ class _SchedulePageState extends State<SchedulePage> {
                           ],
                         ),
                       ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 20, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
+                      // No delete option
                     ],
                     onSelected: (value) {
                       if (value == 'edit') {
                         _editSchedule(schedule);
-                      } else if (value == 'delete') {
-                        _showDeleteConfirmation(schedule.id);
                       }
                     },
                   ),
                 ),
-              );
-            },
-          );
-        },
-      );
-    }
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _toggleSchedule(String scheduleId, bool value) async {
     try {
+      final adminUser = await FirebaseFirestore.instance.collection('users').doc(FirebaseFirestore.instance.app.options.projectId).get();
+      final toggledBy = adminUser.data()?['username'] ?? adminUser.data()?['email'] ?? 'admin';
       await FirebaseFirestore.instance
-          .collection('schedules')
+          .collection('User-schedule')
           .doc(scheduleId)
-          .update({'isActive': value});
+          .update({
+            'isActive': value,
+            'lastToggledBy': toggledBy,
+            'lastToggledAt': FieldValue.serverTimestamp(),
+          });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(value ? 'Schedule activated.' : 'Schedule deactivated. User will not be able to log in during this time until reactivated.')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating schedule: $e')),
@@ -524,11 +388,8 @@ class _SchedulePageState extends State<SchedulePage> {
       return;
     }
 
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
     final scheduleData = {
-      'userId': userId,
+      'userId': widget.userId,
       'name': _scheduleName,
       'days': _selectedDays,
       'startTime': '${_startTime.hour}:${_startTime.minute}',
@@ -541,12 +402,12 @@ class _SchedulePageState extends State<SchedulePage> {
     try {
       if (_editingScheduleId != null) {
         await FirebaseFirestore.instance
-            .collection('schedules')
+            .collection('User-schedule')
             .doc(_editingScheduleId)
             .update(scheduleData);
       } else {
         await FirebaseFirestore.instance
-            .collection('schedules')
+            .collection('User-schedule')
             .add(scheduleData);
       }
 
@@ -581,7 +442,7 @@ class _SchedulePageState extends State<SchedulePage> {
   void _deleteSchedule(String scheduleId) async {
     try {
       await FirebaseFirestore.instance
-          .collection('schedules')
+          .collection('User-schedule')
           .doc(scheduleId)
           .delete();
       
@@ -614,4 +475,13 @@ class _SchedulePageState extends State<SchedulePage> {
     );
     return time.format(context);
   }
-}
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return '';
+    if (timestamp is Timestamp) {
+      final dt = timestamp.toDate();
+      return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return timestamp.toString();
+  }
+} 
