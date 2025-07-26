@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -33,34 +34,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
   }
 
-  Future<bool> _isFirstUser() async {
-    final users = await FirebaseFirestore.instance.collection('users').get();
-    return users.docs.isEmpty;
-  }
-
   Future<void> registerUser(String email, String password) async {
     try {
-      // Create user in Firebase Authentication
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      // Determine role
-      String role = await _isFirstUser() ? 'admin' : 'user';
-
-      // Save additional user details to Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'username': _usernameController.text.trim(),
-        'email': email,
-        'password': password,
-        'createdAt': FieldValue.serverTimestamp(),
-        'userId': userCredential.user!.uid,
-        'role': role,
-      });
-
-      print("User registered: ${userCredential.user!.email}, role: $role");
+      await UserService.registerUser(
+        username: _usernameController.text.trim(),
+        email: email,
+        password: password,
+      );
     } catch (e) {
       print("Error: $e");
       throw e; // Re-throw the error to be caught by _submitForm
@@ -115,14 +95,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: const Text('OK'),
               onPressed: () {
                 Navigator.pop(context); // Close dialog
-                // Navigate back to login with user data
+                // Navigate back to login
                 Navigator.pushReplacementNamed(
                   context, 
-                  '/login',
-                  arguments: {
-                    'email': _emailController.text.trim(),
-                    'password': _passwordController.text,
-                  },
+                  '/',
                 );
               },
             ),

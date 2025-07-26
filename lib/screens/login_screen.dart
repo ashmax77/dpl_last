@@ -2,27 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      home: const LoginScreen(),
-    );
-  }
-}
+import '../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -63,29 +43,14 @@ class _LoginPageState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
-        // Authenticate user with Firebase
-        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        await UserService.loginUser(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-        
-        // Update last login time in Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-          'isOnline': true,
-        });
 
         if (mounted) {
           setState(() => _isLoading = false);
-          // Navigate to home page and remove all previous routes
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false, // This removes all previous routes
-          );
+          // Navigation will be handled by AuthWrapper
         }
       } catch (e) {
         if (mounted) {

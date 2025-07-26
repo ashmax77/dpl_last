@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/user_service.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
@@ -28,19 +29,18 @@ class _SchedulePageState extends State<SchedulePage> {
   }
 
   Future<void> _fetchRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    try {
+      final isAdmin = await UserService.isAdmin();
+      setState(() {
+        _role = isAdmin ? 'admin' : 'user';
+        _loading = false;
+      });
+    } catch (e) {
       setState(() {
         _role = 'user';
         _loading = false;
       });
-      return;
     }
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    setState(() {
-      _role = userDoc.data()?['role'] ?? 'user';
-      _loading = false;
-    });
   }
 
   @override

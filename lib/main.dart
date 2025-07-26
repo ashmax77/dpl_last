@@ -1,5 +1,7 @@
 import 'package:dlp_last/screens/home_screen.dart';
 import 'package:dlp_last/screens/login_screen.dart';
+import 'package:dlp_last/screens/admin_user_management_screen.dart';
+import 'package:dlp_last/services/auth_wrapper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'screens/register_screen.dart';
@@ -14,17 +16,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Your App Name',
-      initialRoute: '/',
+      title: 'Role-Based App',
+      home: const AuthWrapper(),
       routes: {
-        '/': (context) => LoginScreen(),
-        '/home': (context) => HomeScreen(),
         '/register': (context) => RegisterScreen(),
-      },
-      onUnknownRoute: (settings) {
-        return MaterialPageRoute(
-          builder: (context) => LoginScreen(),
-        );
+        '/admin/users': (context) => AdminUserManagementScreen(),
       },
     );
   }

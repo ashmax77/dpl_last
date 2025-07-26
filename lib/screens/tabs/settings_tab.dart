@@ -2,49 +2,134 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
+import '../../services/user_service.dart';
+import '../admin_user_management_screen.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
   @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  bool _isAdmin = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await UserService.isAdmin();
+      setState(() {
+        _isAdmin = isAdmin;
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isAdmin = false;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView(
       children: [
+        // Admin-only features
+        if (_isAdmin) ...[
+          const ListTile(
+            leading: Icon(Icons.admin_panel_settings, color: Colors.red),
+            title: Text('Admin Panel', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ListTile(
+            leading: const Icon(Icons.people),
+            title: const Text('User Management'),
+            subtitle: const Text('Manage all users'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdminUserManagementScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+        ],
+        
+        // General settings
+        const ListTile(
           leading: Icon(Icons.account_circle),
           title: Text('Edit Profile'),
-          onTap: () {
-            // Add edit profile functionality
-          },
         ),
-        ListTile(
+        const ListTile(
           leading: Icon(Icons.lock),
           title: Text('Change Password'),
-          onTap: () {
-            // Add change password functionality
-          },
         ),
-        ListTile(
+        const ListTile(
           leading: Icon(Icons.notifications),
           title: Text('Notification Settings'),
-          onTap: () {
-            // Add notification settings
-          },
         ),
         ListTile(
-          leading: Icon(Icons.vpn_key),
-          title: Text('Generate Guest OTP'),
+          leading: const Icon(Icons.vpn_key),
+          title: const Text('Generate Guest OTP'),
           onTap: () async {
             await _generateAndShowOTP(context);
           },
         ),
         ListTile(
+          leading: const Icon(Icons.logout, color: Colors.red),
+          title: const Text('Logout', style: TextStyle(color: Colors.red)),
+          onTap: () async {
+            final confirmed = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Confirm Logout'),
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Logout'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirmed == true) {
+              try {
+                await UserService.logoutUser();
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/',
+                  (route) => false,
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Logout error: $e')),
+                );
+              }
+            }
+          },
+        ),
+        const ListTile(
           leading: Icon(Icons.delete),
           title: Text('Delete Account'),
           textColor: Colors.red,
-          onTap: () {
-            // Add delete account functionality
-          },
         ),
       ],
     );

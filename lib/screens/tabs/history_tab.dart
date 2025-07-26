@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/user_service.dart';
 
 class HistoryPage extends StatelessWidget {
   const HistoryPage({super.key});
@@ -10,9 +11,10 @@ class HistoryPage extends StatelessWidget {
     if (user == null) {
       return const Center(child: Text('Not logged in'));
     }
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final role = userDoc.data()?['role'] ?? 'user';
-    if (role != 'admin') {
+    
+    // Check if user is admin using UserService
+    final isAdmin = await UserService.isAdmin();
+    if (!isAdmin) {
       return const Center(child: Text('Access denied: Admins only.'));
     }
 
