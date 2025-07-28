@@ -50,38 +50,44 @@ class _SchedulePageState extends State<SchedulePage> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    if (_role != 'admin') {
-      return const Scaffold(
-        body: Center(child: Text('Access denied: Admins only.')),
+    if (_role == 'admin') {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            if (_isEditing) _buildAddScheduleCard(),
+            Expanded(
+              child: _buildSchedulesList(),
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            setState(() {
+              _isEditing = !_isEditing;
+              if (!_isEditing) {
+                _resetForm();
+              }
+            });
+          },
+          icon: Icon(_isEditing ? Icons.close : Icons.add),
+          label: Text(_isEditing ? 'Cancel' : 'Add Schedule'),
+          backgroundColor: _isEditing ? Colors.red : Colors.blue,
+        ),
+      );
+    } else {
+      // User: read-only, only own schedules
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: _buildSchedulesList(),
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          if (_isEditing) _buildAddScheduleCard(),
-          Expanded(
-            child: _buildSchedulesList(),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          setState(() {
-            _isEditing = !_isEditing;
-            if (!_isEditing) {
-              _resetForm();
-            }
-          });
-        },
-        icon: Icon(_isEditing ? Icons.close : Icons.add),
-        label: Text(_isEditing ? 'Cancel' : 'Add Schedule'),
-        backgroundColor: _isEditing ? Colors.red : Colors.blue,
-      ),
-    );
   }
 
   Widget _buildAddScheduleCard() {
@@ -314,7 +320,7 @@ class _SchedulePageState extends State<SchedulePage> {
                           ),
                           Switch(
                             value: data['isActive'] ?? true,
-                            onChanged: null, // Admin cannot toggle here
+                            onChanged: (value) => _toggleSchedule(schedule.id, value),
                           ),
                         ],
                       ),
@@ -342,6 +348,37 @@ class _SchedulePageState extends State<SchedulePage> {
                           ),
                         ],
                       ),
+                      trailing: PopupMenuButton(
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 20),
+                                SizedBox(width: 8),
+                                Text('Edit'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _editSchedule(schedule);
+                          } else if (value == 'delete') {
+                            _showDeleteConfirmation(schedule.id);
+                          }
+                        },
+                      ),
                     ),
                   );
                 },
@@ -351,7 +388,7 @@ class _SchedulePageState extends State<SchedulePage> {
         },
       );
     } else {
-      // Non-admin: show only own schedules
+      // Non-admin: show only own schedules, read-only
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('User-schedule')
@@ -360,7 +397,7 @@ class _SchedulePageState extends State<SchedulePage> {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(child: Text('Error:  {snapshot.error}'));
           }
 
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -377,11 +414,6 @@ class _SchedulePageState extends State<SchedulePage> {
                   const Text(
                     'No access schedules yet',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Tap the + button to create one',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
@@ -400,22 +432,12 @@ class _SchedulePageState extends State<SchedulePage> {
                 margin: const EdgeInsets.only(bottom: 16),
                 child: ListTile(
                   contentPadding: const EdgeInsets.all(16),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          data['name'] ?? 'Unnamed Schedule',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      Switch(
-                        value: data['isActive'] ?? true,
-                        onChanged: (value) => _toggleSchedule(schedule.id, value),
-                      ),
-                    ],
+                  title: Text(
+                    data['name'] ?? 'Unnamed Schedule',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,37 +461,6 @@ class _SchedulePageState extends State<SchedulePage> {
                         ],
                       ),
                     ],
-                  ),
-                  trailing: PopupMenuButton(
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit, size: 20),
-                            SizedBox(width: 8),
-                            Text('Edit'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, size: 20, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _editSchedule(schedule);
-                      } else if (value == 'delete') {
-                        _showDeleteConfirmation(schedule.id);
-                      }
-                    },
                   ),
                 ),
               );

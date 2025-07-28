@@ -25,7 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> get _adminPages => [
     HomePage(),
     const ProfilePage(),
-    const SchedulePage(),
     const HistoryPage(),
     SettingsPage(),
   ];
@@ -39,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<BottomNavigationBarItem> get _adminNavItems => const [
     BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
     BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-    BottomNavigationBarItem(icon: Icon(Icons.calendar_today), label: 'Schedule'),
     BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
     BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
   ];

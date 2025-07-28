@@ -63,11 +63,36 @@ class _LoginPageState extends State<LoginScreen> {
           // Navigation will be handled by AuthWrapper
         }
       } catch (e) {
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        print('Login error: $errorMsg'); // Debug log
         if (mounted) {
           setState(() {
             _isLoading = false;
-            _loginError = e.toString().replaceFirst('Exception: ', '');
           });
+          if (errorMsg.contains('scheduled access time')) {
+            print('Showing scheduled access time dialog'); // Debug log
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('Access Denied'),
+                content: Text(errorMsg),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+            setState(() {
+              _loginError = null;
+            });
+          } else {
+            setState(() {
+              _loginError = errorMsg;
+            });
+          }
         }
       }
     }
