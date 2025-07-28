@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import '../../services/user_service.dart';
 import '../admin_user_management_screen.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -68,13 +70,29 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
         
         // General settings
-        const ListTile(
-          leading: Icon(Icons.account_circle),
-          title: Text('Edit Profile'),
+        ListTile(
+          leading: const Icon(Icons.account_circle),
+          title: const Text('Edit Profile'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const EditProfileScreen(),
+              ),
+            );
+          },
         ),
-        const ListTile(
-          leading: Icon(Icons.lock),
-          title: Text('Change Password'),
+        ListTile(
+          leading: const Icon(Icons.lock),
+          title: const Text('Change Password'),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ChangePasswordScreen(),
+              ),
+            );
+          },
         ),
         const ListTile(
           leading: Icon(Icons.notifications),

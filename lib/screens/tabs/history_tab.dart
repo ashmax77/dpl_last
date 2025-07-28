@@ -127,6 +127,17 @@ class HistoryPage extends StatelessWidget {
                           userData['isOnline'] == true ? 'Online' : 'Offline',
                           textColor: userData['isOnline'] == true ? Colors.green : Colors.red,
                         ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Recent Door Events:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildDoorEventsSection(userData['username'] ?? 'Unknown'),
                       ],
                     ),
                   ),
@@ -205,5 +216,94 @@ class HistoryPage extends StatelessWidget {
       }
     }
     return 'Invalid date';
+  }
+
+  Widget _buildDoorEventsSection(String username) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('lockEvents')
+          .where('username', isEqualTo: username)
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Text('Error loading events: ${snapshot.error}');
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text(
+            'No door events found',
+            style: TextStyle(
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
+          );
+        }
+
+        return Column(
+          children: snapshot.data!.docs.map((doc) {
+            final eventData = doc.data() as Map<String, dynamic>;
+            final timestamp = eventData['timestamp'] as Timestamp?;
+            final isLocked = eventData['locked'] as bool? ?? false;
+            final role = eventData['role'] as String? ?? 'user';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isLocked ? Colors.red.shade50 : Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isLocked ? Colors.red.shade200 : Colors.green.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isLocked ? Icons.lock : Icons.lock_open,
+                    color: isLocked ? Colors.red : Colors.green,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isLocked ? 'Door Locked' : 'Door Unlocked',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isLocked ? Colors.red : Colors.green,
+                          ),
+                        ),
+                        Text(
+                          'Role: $role',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    _formatTimestamp(timestamp),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 }
