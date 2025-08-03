@@ -1,0 +1,23 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-raspidlp-dev-c52fc-authRole",
+      "UnauthRoleArn": "arn:aws:iam::681696217138:role/amplify-raspidlp-dev-c52fc-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::681696217138:role/amplify-raspidlp-dev-c52fc-authRole",
+      "Region": "ap-south-1",
+      "DeploymentBucketName": "amplify-raspidlp-dev-c52fc-deployment",
+      "UnauthRoleName": "amplify-raspidlp-dev-c52fc-unauthRole",
+      "StackName": "amplify-raspidlp-dev-c52fc",
+      "StackId": "arn:aws:cloudformation:ap-south-1:681696217138:stack/amplify-raspidlp-dev-c52fc/d17b4860-6f80-11f0-925a-02019f54b187",
+      "AmplifyAppId": "dhgbhcl8v9s9b"
+    },
+    "categories": {
+      "auth": {
+        "raspidlpc7badcc1": {}
+      },
+      "storage": {
+        "raspi": {}
+      }
+    }
+  }
+}

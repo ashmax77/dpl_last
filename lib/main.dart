@@ -5,9 +5,26 @@ import 'package:dlp_last/services/auth_wrapper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'screens/register_screen.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
+import 'amplifyconfiguration.dart';
+
+Future<void> _configureAmplify() async {
+  try {
+    await Amplify.addPlugins([
+      AmplifyAuthCognito(),
+      AmplifyStorageS3(),
+    ]);
+    await Amplify.configure(amplifyconfig);
+  } catch (e) {
+    print('Amplify configuration failed: $e');
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await _configureAmplify();
   await Firebase.initializeApp();
   runApp(MyApp());
 }

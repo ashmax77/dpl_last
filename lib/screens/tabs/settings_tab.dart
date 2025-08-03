@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../admin_user_management_screen.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import 'face_registration_screen.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -105,6 +106,21 @@ class _SettingsPageState extends State<SettingsPage> {
             await _generateAndShowOTP(context);
           },
         ),
+        if (_isAdmin) ...[
+          ListTile(
+            leading: const Icon(Icons.face),
+            title: const Text('Face Registration'),
+            subtitle: const Text('Register faces for door access (Admin Only)'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FaceRegistrationScreen(),
+                ),
+              );
+            },
+          ),
+        ],
         ListTile(
           leading: const Icon(Icons.logout, color: Colors.red),
           title: const Text('Logout', style: TextStyle(color: Colors.red)),
