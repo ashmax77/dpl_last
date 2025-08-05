@@ -2,6 +2,7 @@ import 'package:dlp_last/screens/home_screen.dart';
 import 'package:dlp_last/screens/login_screen.dart';
 import 'package:dlp_last/screens/admin_user_management_screen.dart';
 import 'package:dlp_last/services/auth_wrapper.dart';
+import 'package:dlp_last/services/firebase_notify.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'screens/register_screen.dart';
@@ -26,6 +27,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _configureAmplify();
   await Firebase.initializeApp();
+  notificationService().initialize();
   runApp(MyApp());
 }
 
