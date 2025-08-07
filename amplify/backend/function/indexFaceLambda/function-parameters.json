@@ -1,0 +1,21 @@
+{
+  "lambdaLayers": [],
+  "permissions": {
+    "auth": {
+      "raspidlpf182af18": [
+        "create",
+        "read",
+        "update",
+        "delete"
+      ]
+    },
+    "storage": {
+      "raspi": [
+        "create",
+        "read",
+        "update",
+        "delete"
+      ]
+    }
+  }
+}

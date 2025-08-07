@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import '../../services/user_service.dart';
+import '../../services/firebase_notify.dart';
 import '../admin_user_management_screen.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
@@ -95,9 +96,73 @@ class _SettingsPageState extends State<SettingsPage> {
             );
           },
         ),
-        const ListTile(
-          leading: Icon(Icons.notifications),
-          title: Text('Notification Settings'),
+        ListTile(
+          leading: const Icon(Icons.notifications),
+          title: const Text('Test Notification'),
+          subtitle: const Text('Send a test notification'),
+          onTap: () async {
+            await notificationService.sendTestNotification();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Test notification sent!')),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.security),
+          title: const Text('Check Notification Permissions'),
+          subtitle: const Text('Check if notifications are working'),
+          onTap: () async {
+            await notificationService.checkPermissions();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Check console for permission details')),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.device_hub),
+          title: const Text('Device Information'),
+          subtitle: const Text('View device and token information'),
+          onTap: () async {
+            final deviceInfo = await notificationService.getDeviceInfo();
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Device Information'),
+                content: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('User ID: ${deviceInfo['userId']}'),
+                      const SizedBox(height: 8),
+                      Text('Device ID: ${deviceInfo['deviceId']}'),
+                      const SizedBox(height: 8),
+                      Text('Platform: ${deviceInfo['platform']}'),
+                      const SizedBox(height: 8),
+                      Text('FCM Token: ${deviceInfo['fcmToken']}'),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.warning),
+          title: const Text('Create Test Door Alert'),
+          subtitle: const Text('Create a test alert in Firestore'),
+          onTap: () async {
+            await notificationService.createTestDoorAlert();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Test door alert created!')),
+            );
+          },
         ),
         ListTile(
           leading: const Icon(Icons.vpn_key),

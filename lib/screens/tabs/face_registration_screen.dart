@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../services/face_registration_service.dart';
+import '../../services/user_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   const FaceRegistrationScreen({super.key});
@@ -14,6 +16,58 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   final ImagePicker _picker = ImagePicker();
   File? _selectedImage;
   bool _isUploading = false;
+  bool _isAdmin = false;
+  bool _loadingAdminCheck = true;
+  List<Map<String, dynamic>> _registeredFaces = [];
+  bool _loadingFaces = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+    _loadRegisteredFaces();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    try {
+      final isAdmin = await UserService.isAdmin();
+      setState(() {
+        _isAdmin = isAdmin;
+        _loadingAdminCheck = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isAdmin = false;
+        _loadingAdminCheck = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error checking admin status: $e')),
+      );
+    }
+  }
+
+  Future<void> _loadRegisteredFaces() async {
+    if (!_isAdmin) return;
+    
+    setState(() {
+      _loadingFaces = true;
+    });
+
+    try {
+      final faces = await FaceRegistrationService.getRegisteredFaces();
+      setState(() {
+        _registeredFaces = faces;
+        _loadingFaces = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingFaces = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading registered faces: $e')),
+      );
+    }
+  }
 
   Future<void> _pickImageFromGallery() async {
     try {
@@ -56,6 +110,9 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         _selectedImage = null;
       });
 
+      // Reload the faces list
+      await _loadRegisteredFaces();
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Face image uploaded successfully!'),
@@ -76,14 +133,73 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
     }
   }
 
+  Future<void> _deleteFace(String faceId) async {
+    try {
+      await FaceRegistrationService.deleteFace(faceId);
+      await _loadRegisteredFaces();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Face deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting face: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_loadingAdminCheck) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (!_isAdmin) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Face Registration'),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.block, size: 64, color: Colors.red),
+              SizedBox(height: 16),
+              Text(
+                'Access Denied',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Only administrators can register faces.',
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Face Registration'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadRegisteredFaces,
+          ),
+        ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -204,9 +320,116 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                 ),
               ),
             ),
+
+            const SizedBox(height: 24),
+
+            // Registered Faces Section
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.face, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text(
+                          'Registered Faces',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    if (_loadingFaces) ...[
+                      const Center(child: CircularProgressIndicator()),
+                    ] else if (_registeredFaces.isEmpty) ...[
+                      const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.face_outlined, size: 48, color: Colors.grey),
+                            SizedBox(height: 8),
+                            Text(
+                              'No faces registered yet',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      ..._registeredFaces.map((face) => _buildFaceCard(face)).toList(),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildFaceCard(Map<String, dynamic> face) {
+    final uploadedAt = face['uploadedAt'];
+    final fileName = face['fileName'] ?? 'Unknown';
+    final fileSize = face['fileSize'] ?? 0;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: const CircleAvatar(
+          child: Icon(Icons.face),
+        ),
+        title: Text(fileName.split('/').last),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Size: ${(fileSize / 1024).toStringAsFixed(1)} KB'),
+            if (uploadedAt != null)
+              Text('Uploaded: ${_formatTimestamp(uploadedAt)}'),
+          ],
+        ),
+        trailing: IconButton(
+          icon: const Icon(Icons.delete, color: Colors.red),
+          onPressed: () => _showDeleteConfirmation(face['id']),
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(String faceId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Face'),
+        content: const Text('Are you sure you want to delete this registered face?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteFace(faceId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(dynamic timestamp) {
+    if (timestamp == null) return 'Unknown';
+    if (timestamp is Timestamp) {
+      final date = timestamp.toDate();
+      return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+    return 'Unknown';
   }
 } 

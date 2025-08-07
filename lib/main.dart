@@ -10,8 +10,21 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
 import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 import 'amplifyconfiguration.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 
-Future<void> _configureAmplify() async {
+// Background message handler
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print('Handling a background message: ${message.messageId}');
+  print('Message data: ${message.data}');
+  print('Message notification: ${message.notification?.title}');
+}
+
+Future<void> _configureAmplifyPlugins() async {
   try {
     await Amplify.addPlugins([
       AmplifyAuthCognito(),
@@ -25,12 +38,18 @@ Future<void> _configureAmplify() async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _configureAmplify();
-  await Firebase.initializeApp();
-  notificationService().initialize();
+  
+  // Set background message handler BEFORE Firebase initialization
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  await _configureAmplifyPlugins();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  await notificationService.initialize();
   runApp(MyApp());
 }
-
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

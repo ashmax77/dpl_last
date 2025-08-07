@@ -136,10 +136,52 @@ class _SmartLockHomeState extends State<HomePage> {
                 ],
               ),
             ),
+            // Test door alert button (for testing notifications)
+            if (_role == 'admin') ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: ElevatedButton.icon(
+                  onPressed: () => _testDoorAlert(),
+                  icon: const Icon(Icons.notification_add),
+                  label: const Text('Test Door Alert'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  void _testDoorAlert() async {
+    try {
+      await FirebaseFirestore.instance.collection('door-alerts').add({
+        'type': 'Test Alert',
+        'description': 'This is a test door alert',
+        'location': 'Main Entrance',
+        'timestamp': FieldValue.serverTimestamp(),
+        'severity': 'medium',
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Test door alert created! Check notifications.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error creating test alert: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // ---------- UI WIDGETS BELOW ----------
