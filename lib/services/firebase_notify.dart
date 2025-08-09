@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart'; // Added for Color
+import 'package:dlp_last/screens/intruder_alert_screen.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -15,35 +16,47 @@ class NotificationService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   StreamSubscription<QuerySnapshot>? _doorAlertsSubscription;
-  StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<RemoteMessage>? _backgroundSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundSubscription; // Added for foreground messaging
   
   // Track last notification to avoid duplicates
   String? _lastNotificationId;
   DateTime? _lastNotificationTime;
+  
+  // Flag to prevent notifications during initialization
+  bool _isInitializing = false;
+  
+  // Global navigation key for handling notification taps
+  GlobalKey<NavigatorState>? _navigatorKey;
 
   /// Initialize notification service
   Future<void> initialize() async {
     try {
+      _isInitializing = true; // Prevent any notifications during initialization
       print('Starting notification service initialization...');
+      print('⚠️ IMPORTANT: No notifications will be shown during initialization');
       
-      // Request permissions
+      // Request permissions (this should not trigger any notifications)
       await _requestPermissions();
       
-      // Get FCM token
+      // Get FCM token (for server-side notifications only)
       await _getFCMToken();
       
-      // Initialize local notifications
+      // Initialize local notifications (this should not trigger any notifications)
       await _initializeLocalNotifications();
       
-      // Set up message handlers
+      // Set up message handlers (background only, no foreground alerts)
       await _setupMessageHandlers();
       
-      // Start listening to door alerts
+      // Start listening to door alerts from Firestore (will not process existing alerts)
       await _startDoorAlertsListener();
       
-      print('Notification service initialized successfully');
+      _isInitializing = false; // Allow notifications after initialization
+      print('✅ Notification service initialized successfully');
+      print('✅ No automatic notifications shown during startup');
+      print('✅ Only NEW door alerts will trigger notifications');
     } catch (e) {
+      _isInitializing = false; // Reset flag on error
       print('Error initializing notification service: $e');
       rethrow; // Re-throw to see the error in main
     }
@@ -52,6 +65,7 @@ class NotificationService {
   /// Request notification permissions
   Future<void> _requestPermissions() async {
     try {
+      print('Requesting notification permissions (this should not show any notifications)...');
       NotificationSettings settings = await _messaging.requestPermission(
         alert: true,
         announcement: false,
@@ -63,6 +77,7 @@ class NotificationService {
       );
       
       print('User granted permission: ${settings.authorizationStatus}');
+      print('✅ Permission request completed - no notifications shown');
     } catch (e) {
       print('Error requesting notification permissions: $e');
     }
@@ -71,12 +86,15 @@ class NotificationService {
   /// Get FCM token
   Future<void> _getFCMToken() async {
     try {
+      print('Getting FCM token (this should not trigger any notifications)...');
       String? token = await _messaging.getToken();
       if (token != null) {
         print('FCM Token: $token');
         
-        // Store token in Firestore for server-side notifications
+        // Store token in Firestore for server-side notifications only
+        // This does NOT trigger automatic alerts on login
         await _storeFCMToken(token);
+        print('✅ FCM token stored - no notifications shown');
       }
     } catch (e) {
       print('Error getting FCM token: $e');
@@ -116,9 +134,11 @@ class NotificationService {
   /// Get unique device identifier
   Future<String> _getDeviceId() async {
     try {
-      // Use FCM token as device identifier (it's unique per device)
-      String? token = await _messaging.getToken();
-      return token ?? DateTime.now().millisecondsSinceEpoch.toString();
+      // Use a combination of platform and timestamp for device identification
+      // Avoid calling getToken() again to prevent triggering Firebase events
+      final platform = _getPlatform();
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      return '${platform}_$timestamp';
     } catch (e) {
       return DateTime.now().millisecondsSinceEpoch.toString();
     }
@@ -210,10 +230,8 @@ class NotificationService {
   /// Set up message handlers
   Future<void> _setupMessageHandlers() async {
     try {
-      // Handle foreground messages
-      _foregroundSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-      
-      // Handle when app is opened from notification
+      // Only handle background messages when app is opened from notification
+      // Don't set up foreground message handler to prevent automatic alerts on login
       _backgroundSubscription = FirebaseMessaging.onMessageOpenedApp.listen(_handleBackgroundMessage);
       
       // Handle app launch from notification
@@ -222,22 +240,34 @@ class NotificationService {
         _handleBackgroundMessage(initialMessage);
       }
       
-      print('Message handlers set up');
+      print('Message handlers set up (foreground messages disabled)');
     } catch (e) {
       print('Error setting up message handlers: $e');
     }
   }
 
-  /// Handle foreground messages
+  /// Handle foreground messages - DISABLED to prevent automatic alerts on login
   void _handleForegroundMessage(RemoteMessage message) {
-    print('Received foreground message: ${message.notification?.title}');
-    
-    // Show local notification
-    _showLocalNotification(
-      title: message.notification?.title ?? 'New Message',
-      body: message.notification?.body ?? 'You have a new notification',
-      payload: message.data.toString(),
-    );
+    print('Foreground message received but ignored: ${message.notification?.title}');
+    // Do not show any notifications for foreground messages
+    // This prevents the messaging alert that appears on every login
+  }
+
+  /// Enable foreground messaging (call this only if you want to receive foreground notifications)
+  Future<void> enableForegroundMessaging() async {
+    try {
+      _foregroundSubscription = FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      print('Foreground messaging enabled');
+    } catch (e) {
+      print('Error enabling foreground messaging: $e');
+    }
+  }
+
+  /// Disable foreground messaging
+  void disableForegroundMessaging() {
+    _foregroundSubscription?.cancel();
+    _foregroundSubscription = null;
+    print('Foreground messaging disabled');
   }
 
   /// Handle background messages
@@ -265,16 +295,35 @@ class NotificationService {
   /// Start listening to door alerts from Firestore
   Future<void> _startDoorAlertsListener() async {
     try {
+      print('Starting door alerts listener...');
+      
+      // Track the last processed document to avoid processing existing alerts on startup
+      String? lastProcessedId;
+      
       _doorAlertsSubscription = FirebaseFirestore.instance
           .collection('door_alerts')
           .orderBy('timestamp', descending: true)
-          .limit(1)
           .snapshots()
           .listen(
         (QuerySnapshot snapshot) {
+          print('Door alerts snapshot received: ${snapshot.docs.length} documents');
           if (snapshot.docs.isNotEmpty) {
             final latestDoc = snapshot.docs.first;
-            _processDoorAlert(latestDoc);
+            final latestId = latestDoc.id;
+            
+            // Only process if this is a new document (not processed before)
+            if (lastProcessedId == null) {
+              // First time - just store the ID without processing
+              lastProcessedId = latestId;
+              print('Initial door alerts snapshot - storing latest ID: $latestId (no notification)');
+            } else if (latestId != lastProcessedId) {
+              // New document detected - process it
+              print('New door alert detected: $latestId');
+              _processDoorAlert(latestDoc);
+              lastProcessedId = latestId;
+            } else {
+              print('No new door alerts - latest ID unchanged: $latestId');
+            }
           }
         },
         onError: (error) {
@@ -282,7 +331,7 @@ class NotificationService {
         },
       );
       
-      print('Door alerts listener started');
+      print('Door alerts listener started successfully - will only notify for NEW alerts');
     } catch (e) {
       print('Error starting door alerts listener: $e');
     }
@@ -291,6 +340,12 @@ class NotificationService {
   /// Process door alert and send notification
   void _processDoorAlert(DocumentSnapshot document) {
     try {
+      // Prevent notifications during initialization
+      if (_isInitializing) {
+        print('⚠️ Skipping door alert processing during initialization: ${document.id}');
+        return;
+      }
+      
       final data = document.data() as Map<String, dynamic>?;
       if (data == null) return;
 
@@ -310,7 +365,7 @@ class NotificationService {
       _lastNotificationTime = DateTime.now();
 
       // Extract alert information
-      final alertType = data['type'] ?? 'Unknown';
+      final alertType = data['type'] ?? 'Intruder Alert';
       final description = data['description'] ?? 'Door activity detected';
       final location = data['location'] ?? 'Main entrance';
  
@@ -360,15 +415,25 @@ class NotificationService {
         iOS: iOSDetails,
       );
 
+      // Create a proper payload for navigation
+      final payload = {
+        'type': data?['type'] ?? 'Security Alert',
+        'description': data?['description'] ?? 'Door activity detected',
+        'location': data?['location'] ?? 'Main entrance',
+        'timestamp': data?['timestamp']?.toDate()?.toIso8601String() ?? DateTime.now().toIso8601String(),
+        'alertId': alertId,
+      };
+
       _localNotifications.show(
         alertId.hashCode, // Use hash as notification ID
         title,
         body,
         details,
-        payload: data?.toString(),
+        payload: payload.toString(),
       );
 
       print('Door alert notification sent: $alertId');
+      print('Notification payload: $payload');
     } catch (e) {
       print('Error showing door alert notification: $e');
     }
@@ -413,14 +478,86 @@ class NotificationService {
     }
   }
 
+  /// Set the navigator key for handling notification taps
+  void setNavigatorKey(GlobalKey<NavigatorState> navigatorKey) {
+    _navigatorKey = navigatorKey;
+    print('Navigator key set for notification service');
+  }
+
   /// Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
     
     // Handle navigation based on notification type
     if (response.payload != null) {
-      // You can add navigation logic here
-      print('Notification payload: ${response.payload}');
+      try {
+        // Parse the payload to extract alert data
+        final payloadString = response.payload!;
+        Map<String, dynamic>? alertData;
+        
+        // Try to parse the payload as a structured string
+        if (payloadString.startsWith('{') && payloadString.endsWith('}')) {
+          // Remove the curly braces and parse
+          final cleanPayload = payloadString.substring(1, payloadString.length - 1);
+          final pairs = cleanPayload.split(',');
+          alertData = {};
+          
+          for (final pair in pairs) {
+            final keyValue = pair.split(':');
+            if (keyValue.length == 2) {
+              final key = keyValue[0].trim().replaceAll('"', '').replaceAll("'", '');
+              var value = keyValue[1].trim().replaceAll('"', '').replaceAll("'", '');
+              
+              // Handle timestamp conversion
+              if (key == 'timestamp') {
+                try {
+                  final dateTime = DateTime.parse(value);
+                  alertData[key] = dateTime;
+                } catch (e) {
+                  alertData[key] = DateTime.now();
+                }
+              } else {
+                alertData[key] = value;
+              }
+            }
+          }
+        } else {
+          // Use default values if payload can't be parsed
+          alertData = {
+            'type': 'Security Alert',
+            'description': 'Door activity detected',
+            'location': 'Main entrance',
+            'timestamp': DateTime.now(),
+          };
+        }
+        
+        print('Parsed alert data: $alertData');
+        
+        // Navigate to intruder alert screen if navigator key is available
+        if (_navigatorKey?.currentState != null) {
+          _navigatorKey!.currentState!.pushNamed(
+            '/intruder-alert',
+            arguments: alertData,
+          );
+          print('✅ Navigated to intruder alert screen');
+        } else {
+          print('⚠️ Navigator key not available for navigation');
+        }
+      } catch (e) {
+        print('Error handling notification tap: $e');
+        // Fallback: try to navigate with default data
+        if (_navigatorKey?.currentState != null) {
+          _navigatorKey!.currentState!.pushNamed(
+            '/intruder-alert',
+            arguments: {
+              'type': 'Security Alert',
+              'description': 'Door activity detected',
+              'location': 'Main entrance',
+              'timestamp': DateTime.now(),
+            },
+          );
+        }
+      }
     }
   }
 
@@ -442,7 +579,8 @@ class NotificationService {
   /// Create a test door alert in Firestore
   Future<void> createTestDoorAlert() async {
     try {
-      await FirebaseFirestore.instance
+      print('Creating test door alert...');
+      final docRef = await FirebaseFirestore.instance
           .collection('door_alerts')
           .add({
         'type': 'Test Alert',
@@ -450,11 +588,42 @@ class NotificationService {
         'location': 'Test Location',
         'timestamp': FieldValue.serverTimestamp(),
         'userId': FirebaseAuth.instance.currentUser?.uid ?? 'test_user',
+        'test': true, // Mark as test alert
       });
-      print('Test door alert created in Firestore');
+      print('Test door alert created in Firestore with ID: ${docRef.id}');
+      print('This should trigger a notification if the listener is working properly');
     } catch (e) {
       print('Error creating test door alert: $e');
     }
+  }
+
+  /// Test the door alerts listener
+  Future<void> testDoorAlertsListener() async {
+    try {
+      print('Testing door alerts listener...');
+      print('Current subscription status: ${_doorAlertsSubscription != null ? 'Active' : 'Inactive'}');
+      
+      if (_doorAlertsSubscription != null) {
+        print('Door alerts listener is active and listening for changes');
+        print('Create a test door alert to verify notifications are working');
+      } else {
+        print('Door alerts listener is not active');
+      }
+    } catch (e) {
+      print('Error testing door alerts listener: $e');
+    }
+  }
+
+  /// Get current notification service status
+  Map<String, dynamic> getServiceStatus() {
+    return {
+      'doorAlertsListenerActive': _doorAlertsSubscription != null,
+      'foregroundMessagingEnabled': _foregroundSubscription != null,
+      'backgroundMessagingEnabled': _backgroundSubscription != null,
+      'localNotificationsInitialized': _localNotifications != null,
+      'lastNotificationId': _lastNotificationId,
+      'lastNotificationTime': _lastNotificationTime?.toIso8601String(),
+    };
   }
 
   /// Check notification permissions
