@@ -12,7 +12,6 @@ class HistoryPage extends StatelessWidget {
       return const Center(child: Text('Not logged in'));
     }
     
-    // Check if user is admin using UserService
     final isAdmin = await UserService.isAdmin();
     if (!isAdmin) {
       return const Center(child: Text('Access denied: Admins only.'));

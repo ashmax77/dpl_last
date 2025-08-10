@@ -7,11 +7,9 @@ class IntruderAlertScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get alert data from route arguments if not passed directly
     final Map<String, dynamic>? data = alertData ?? 
         (ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?);
     
-    // Extract alert information from the data
     final alertType = data?['type'] ?? 'Security Alert';
     final description = data?['description'] ?? 'Door activity detected';
     final location = data?['location'] ?? 'Main entrance';
@@ -39,7 +37,6 @@ class IntruderAlertScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Warning Icon
               Container(
                 width: 120,
                 height: 120,
@@ -56,7 +53,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 32),
               
-              // Alert Title
               Text(
                 '🚨 INTRUDER ALERT 🚨',
                 style: TextStyle(
@@ -69,7 +65,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 24),
               
-              // Alert Type
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
@@ -89,7 +84,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 24),
               
-              // Description
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -129,7 +123,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 20),
               
-              // Location
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -169,7 +162,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 20),
               
-              // Timestamp
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -209,7 +201,6 @@ class IntruderAlertScreen extends StatelessWidget {
               
               const SizedBox(height: 32),
               
-              // Action Buttons
               Row(
                 children: [
                   Expanded(
@@ -233,11 +224,11 @@ class IntruderAlertScreen extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () {
-                        // You can add emergency contact functionality here
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Emergency contacts will be notified'),
                             backgroundColor: Colors.orange,
+                            
                           ),
                         );
                       },

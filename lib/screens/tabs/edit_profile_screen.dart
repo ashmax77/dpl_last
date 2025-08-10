@@ -8,7 +8,6 @@ class EditProfileScreen extends StatefulWidget {
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
-
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -62,7 +61,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Update Firestore
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -72,7 +70,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        // Update Firebase Auth email if changed
         if (user.email != _emailController.text.trim()) {
           await user.updateEmail(_emailController.text.trim());
         }

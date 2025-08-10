@@ -110,7 +110,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         _selectedImage = null;
       });
 
-      // Reload the faces list
       await _loadRegisteredFaces();
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -204,7 +203,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Instructions Card
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -238,7 +236,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
             
             const SizedBox(height: 24),
             
-            // Image Selection Section
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -323,7 +320,6 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
 
             const SizedBox(height: 24),
 
-            // Registered Faces Section
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),

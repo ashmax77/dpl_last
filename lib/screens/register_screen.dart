@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } catch (e) {
       print("Error: $e");
-      throw e; // Re-throw the error to be caught by _submitForm
+      throw e; 
     }
   }
 
@@ -62,7 +62,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          // Show error dialog
           showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -94,8 +93,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.pop(context); // Close dialog
-                // Navigate back to login
+                Navigator.pop(context); 
                 Navigator.pushReplacementNamed(
                   context, 
                   '/',

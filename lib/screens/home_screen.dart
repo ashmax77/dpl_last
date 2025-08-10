@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0; // Start with home tab selected (index 1)
+  int _selectedIndex = 0; 
   String? _role;
   bool? _firstUser;
   bool _loading = true;
@@ -79,7 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
       });
       
-      // Show admin welcome message
       _showAdminWelcome();
     } catch (e) {
       print('Error fetching role: $e');

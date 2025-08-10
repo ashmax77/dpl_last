@@ -59,7 +59,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         }).toList();
       });
     } catch (e) {
-      // Ignore online users error for now
+      print("Error loading online users: $e");
     }
   }
 
@@ -89,7 +89,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('User "$username" deleted successfully')),
         );
-        _loadUsers(); // Reload the list
+        _loadUsers(); 
         _loadOnlineUsers();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +126,7 @@ class _AdminUserManagementScreenState extends State<AdminUserManagementScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Role updated successfully')),
         );
-        _loadUsers(); // Reload the list
+        _loadUsers();
         _loadOnlineUsers();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

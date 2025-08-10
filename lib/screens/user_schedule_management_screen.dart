@@ -318,7 +318,6 @@ class _UserScheduleManagementScreenState extends State<UserScheduleManagementScr
                           ],
                         ),
                       ),
-                      // No delete option
                     ],
                     onSelected: (value) {
                       if (value == 'edit') {

@@ -49,7 +49,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return ListView(
       children: [
-        // Admin-only features
         if (_isAdmin) ...[
           const ListTile(
             leading: Icon(Icons.admin_panel_settings, color: Colors.red),
@@ -71,7 +70,6 @@ class _SettingsPageState extends State<SettingsPage> {
           const Divider(),
         ],
         
-        // General settings
         ListTile(
           leading: const Icon(Icons.account_circle),
           title: const Text('Edit Profile'),

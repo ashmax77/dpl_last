@@ -8,7 +8,6 @@ import 'user_service.dart';
 class FaceRegistrationService {
   static const String _collectionName = 'registered_faces';
 
-  /// Check if user is admin before allowing face registration
   static Future<bool> _isUserAdmin() async {
     try {
       return await UserService.isAdmin();
@@ -18,10 +17,8 @@ class FaceRegistrationService {
     }
   }
 
-  /// Upload face image to S3 and store metadata in Firestore
   static Future<void> uploadFaceImage(File imageFile) async {
     try {
-      // Check if user is admin
       final isAdmin = await _isUserAdmin();
       if (!isAdmin) {
         throw Exception('Only admins can register faces');
@@ -32,19 +29,16 @@ class FaceRegistrationService {
         throw Exception('User not authenticated');
       }
 
-      // Validate image file
       if (!await imageFile.exists()) {
         throw Exception('Image file does not exist');
       }
 
-      // Generate unique filename with timestamp
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'faces/${user.uid}/face_$timestamp.jpg';
       
       safePrint('Starting upload for file: $fileName');
 
       try {
-        // Upload to S3 with proper error handling
         final uploadResult = await Amplify.Storage.uploadFile(
           localFile: AWSFile.fromPath(imageFile.path),
           path: StoragePath.fromString(fileName),
@@ -56,7 +50,6 @@ class FaceRegistrationService {
         throw Exception('Failed to upload image to cloud storage: $e');
       }
 
-      // Store metadata in Firestore
       final faceData = {
         'userId': user.uid,
         'userEmail': user.email,
@@ -80,7 +73,6 @@ class FaceRegistrationService {
     }
   }
 
-  /// Get all registered faces for a user
   static Future<List<Map<String, dynamic>>> getRegisteredFaces() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -108,7 +100,6 @@ class FaceRegistrationService {
     }
   }
 
-  /// Delete a registered face
   static Future<void> deleteFace(String faceId) async {
     try {
       final isAdmin = await _isUserAdmin();

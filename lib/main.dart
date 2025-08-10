@@ -14,7 +14,6 @@ import 'amplifyconfiguration.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
-// Background message handler
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
@@ -24,7 +23,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('Message data: ${message.data}');
   print('Message notification: ${message.notification?.title}');
   print('⚠️ Background message received - NO automatic notifications shown');
-  // Do not show any notifications here - only process the message data
 }
 
 Future<void> _configureAmplifyPlugins() async {
@@ -42,7 +40,6 @@ Future<void> _configureAmplifyPlugins() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set background message handler BEFORE Firebase initialization
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
   await _configureAmplifyPlugins();
@@ -64,7 +61,6 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Set the navigator key for the notification service
     WidgetsBinding.instance.addPostFrameCallback((_) {
       notificationService.setNavigatorKey(_navigatorKey);
     });

@@ -96,7 +96,6 @@ class ProfilePage extends StatelessWidget {
                 onPressed: () async {
                   try {
                     await UserService.logoutUser();
-                    // Navigation will be handled by AuthWrapper
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(

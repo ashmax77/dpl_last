@@ -44,12 +44,10 @@ class _SmartLockHomeState extends State<HomePage> {
         return;
       }
 
-      // Fetch username and role from Firestore
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final username = userDoc.data()?['username'] ?? 'Unknown';
       final role = userDoc.data()?['role'] ?? 'user';
 
-      // Send to Firestore (lockEvents)
       await FirebaseFirestore.instance.collection('lockEvents').add({
         'locked': lockStatus,
         'timestamp': DateTime.now(),
@@ -136,7 +134,6 @@ class _SmartLockHomeState extends State<HomePage> {
                 ],
               ),
             ),
-            // Test door alert button (for testing notifications)
             if (_role == 'admin') ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -184,37 +181,10 @@ class _SmartLockHomeState extends State<HomePage> {
     }
   }
 
-  // ---------- UI WIDGETS BELOW ----------
 
   Widget _buildStatusBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      // child: Row(
-      //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //   children: [
-      //     Row(
-      //       children: [
-      //         Icon(Icons.bluetooth,
-      //             color: _isConnected ? Colors.blue : Colors.grey, size: 20),
-      //         SizedBox(width: 6),
-      //         Text(
-      //           _isConnected ? "Connected" : "Disconnected",
-      //           style: TextStyle(color: Colors.black),
-      //         ),
-      //       ],
-      //     ),
-      //     Row(
-      //       children: [
-      //         Icon(Icons.battery_full, size: 20, color: Colors.black),
-      //         SizedBox(width: 6),
-      //         Text(
-      //           "${(_batteryLevel * 100).toInt()}%",
-      //           style: TextStyle(color: Colors.black),
-      //         ),
-      //       ],
-      //     ),
-      //   ],
-      // ),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10)
     );
   }
 }

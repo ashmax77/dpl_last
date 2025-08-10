@@ -22,7 +22,6 @@ class _LoginPageState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Add this to handle the arguments after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
       if (args != null) {
@@ -60,17 +59,16 @@ class _LoginPageState extends State<LoginScreen> {
         );
         if (mounted) {
           setState(() => _isLoading = false);
-          // Navigation will be handled by AuthWrapper
         }
       } catch (e) {
         final errorMsg = e.toString().replaceFirst('Exception: ', '');
-        print('Login error: $errorMsg'); // Debug log
+        print('Login error: $errorMsg'); 
         if (mounted) {
           setState(() {
             _isLoading = false;
           });
           if (errorMsg.contains('scheduled access time')) {
-            print('Showing scheduled access time dialog'); // Debug log
+            print('Showing scheduled access time dialog'); 
             showDialog(
               context: context,
               barrierDismissible: false,

@@ -37,7 +37,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Re-authenticate user before changing password
         final credential = EmailAuthProvider.credential(
           email: user.email!,
           password: _currentPasswordController.text,
@@ -45,15 +44,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         
         await user.reauthenticateWithCredential(credential);
         
-        // Change password in Firebase Auth
         await user.updatePassword(_newPasswordController.text);
 
-        // Update password in Firestore database
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .update({
-          'password': _newPasswordController.text, // Store hashed password
+          'password': _newPasswordController.text, 
           'updatedAt': FieldValue.serverTimestamp(),
         });
 

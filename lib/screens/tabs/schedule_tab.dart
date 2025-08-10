@@ -79,7 +79,6 @@ class _SchedulePageState extends State<SchedulePage> {
         ),
       );
     } else {
-      // User: read-only, only own schedules
       return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -249,7 +248,6 @@ class _SchedulePageState extends State<SchedulePage> {
     if (userId == null) return const Center(child: Text('Not logged in'));
 
     if (_role == 'admin') {
-      // Admin: show all schedules with user info
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('User-schedule')
@@ -388,7 +386,6 @@ class _SchedulePageState extends State<SchedulePage> {
         },
       );
     } else {
-      // Non-admin: show only own schedules, read-only
       return StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('User-schedule')
