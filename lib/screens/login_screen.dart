@@ -2,27 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      home: const LoginScreen(),
-    );
-  }
-}
+import '../services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -37,11 +17,11 @@ class _LoginPageState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _loginError;
 
   @override
   void initState() {
     super.initState();
-    // Add this to handle the arguments after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, String>?;
       if (args != null) {
@@ -51,6 +31,16 @@ class _LoginPageState extends State<LoginScreen> {
         });
       }
     });
+    _emailController.addListener(_clearError);
+    _passwordController.addListener(_clearError);
+  }
+
+  void _clearError() {
+    if (_loginError != null) {
+      setState(() {
+        _loginError = null;
+      });
+    }
   }
 
   void _togglePasswordVisibility() {
@@ -63,49 +53,44 @@ class _LoginPageState extends State<LoginScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
-        // Authenticate user with Firebase
-        UserCredential userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        await UserService.loginUser(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
-        
-        // Update last login time in Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-          'isOnline': true,
-        });
-
         if (mounted) {
           setState(() => _isLoading = false);
-          // Navigate to home page and remove all previous routes
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false, // This removes all previous routes
-          );
         }
       } catch (e) {
+        final errorMsg = e.toString().replaceFirst('Exception: ', '');
+        print('Login error: $errorMsg'); 
         if (mounted) {
-          setState(() => _isLoading = false);
-          // Show error dialog
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Error'),
-                content: Text(e.toString()),
-                actions: <Widget>[
+          setState(() {
+            _isLoading = false;
+          });
+          if (errorMsg.contains('scheduled access time')) {
+            print('Showing scheduled access time dialog'); 
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => AlertDialog(
+                title: const Text('Access Denied'),
+                content: Text(errorMsg),
+                actions: [
                   TextButton(
-                    child: const Text('OK'),
                     onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
                   ),
                 ],
-              );
-            },
-          );
+              ),
+            );
+            setState(() {
+              _loginError = null;
+            });
+          } else {
+            setState(() {
+              _loginError = errorMsg;
+            });
+          }
         }
       }
     }
@@ -134,6 +119,30 @@ class _LoginPageState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
+                if (_loginError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _loginError!,
+                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const FlutterLogo(size: 100),
                 const SizedBox(height: 40),
                 TextFormField(
@@ -199,13 +208,6 @@ class _LoginPageState extends State<LoginScreen> {
                     ),
                   )
                       : const Text('LOGIN'),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () {
-                    // Add forgot password logic
-                  },
-                  child: const Text('Forgot Password?'),
                 ),
                 const SizedBox(height: 40),
                 Row(

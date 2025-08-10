@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/user_service.dart';
 
 class SchedulePage extends StatefulWidget {
   const SchedulePage({super.key});
@@ -18,37 +19,74 @@ class _SchedulePageState extends State<SchedulePage> {
   bool _isEditing = false;
   String? _editingScheduleId;
   String _scheduleName = '';
+  String? _role;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRole();
+  }
+
+  Future<void> _fetchRole() async {
+    try {
+      final isAdmin = await UserService.isAdmin();
+      setState(() {
+        _role = isAdmin ? 'admin' : 'user';
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _role = 'user';
+        _loading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Door Access Schedule'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          if (_isEditing) _buildAddScheduleCard(),
-          Expanded(
-            child: _buildSchedulesList(),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          setState(() {
-            _isEditing = !_isEditing;
-            if (!_isEditing) {
-              _resetForm();
-            }
-          });
-        },
-        icon: Icon(_isEditing ? Icons.close : Icons.add),
-        label: Text(_isEditing ? 'Cancel' : 'Add Schedule'),
-        backgroundColor: _isEditing ? Colors.red : Colors.blue,
-      ),
-    );
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_role == 'admin') {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            if (_isEditing) _buildAddScheduleCard(),
+            Expanded(
+              child: _buildSchedulesList(),
+            ),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            setState(() {
+              _isEditing = !_isEditing;
+              if (!_isEditing) {
+                _resetForm();
+              }
+            });
+          },
+          icon: Icon(_isEditing ? Icons.close : Icons.add),
+          label: Text(_isEditing ? 'Cancel' : 'Add Schedule'),
+          backgroundColor: _isEditing ? Colors.red : Colors.blue,
+        ),
+      );
+    } else {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: _buildSchedulesList(),
+      );
+    }
   }
 
   Widget _buildAddScheduleCard() {
@@ -209,131 +247,225 @@ class _SchedulePageState extends State<SchedulePage> {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return const Center(child: Text('Not logged in'));
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('schedules')
-          .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        }
+    if (_role == 'admin') {
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('User-schedule')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                const Text(
-                  'No access schedules yet',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Tap the + button to create one',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          itemCount: snapshot.data!.docs.length,
-          padding: const EdgeInsets.all(16),
-          itemBuilder: (context, index) {
-            final schedule = snapshot.data!.docs[index];
-            final data = schedule.data() as Map<String, dynamic>;
-
-            return Card(
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 16),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        data['name'] ?? 'Unnamed Schedule',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    Switch(
-                      value: data['isActive'] ?? true,
-                      onChanged: (value) => _toggleSchedule(schedule.id, value),
-                    ),
-                  ],
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, size: 16),
-                        const SizedBox(width: 8),
-                        Text(data['days'].join(', ')),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time, size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_formatTimeString(data['startTime'])} - ${_formatTimeString(data['endTime'])}',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: PopupMenuButton(
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(
-                        children: [
-                          Icon(Icons.edit, size: 20),
-                          SizedBox(width: 8),
-                          Text('Edit'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, size: 20, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      _editSchedule(schedule);
-                    } else if (value == 'delete') {
-                      _showDeleteConfirmation(schedule.id);
-                    }
-                  },
-                ),
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No access schedules yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tap the + button to create one',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
               ),
             );
-          },
-        );
-      },
-    );
+          }
+
+          final schedules = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: schedules.length,
+            padding: const EdgeInsets.all(16),
+            itemBuilder: (context, index) {
+              final schedule = schedules[index];
+              final data = schedule.data() as Map<String, dynamic>;
+              final scheduleUserId = data['userId'] ?? '';
+              return FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance.collection('users').doc(scheduleUserId).get(),
+                builder: (context, userSnapshot) {
+                  String userLabel = 'Unknown user';
+                  if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                    final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                    userLabel = userData['username'] ?? userData['email'] ?? scheduleUserId;
+                  }
+                  return Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.all(16),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              data['name'] ?? 'Unnamed Schedule',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          Switch(
+                            value: data['isActive'] ?? true,
+                            onChanged: (value) => _toggleSchedule(schedule.id, value),
+                          ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('User: $userLabel', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 16),
+                              const SizedBox(width: 8),
+                              Text((data['days'] as List).join(', ')),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.access_time, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${_formatTimeString(data['startTime'])} - ${_formatTimeString(data['endTime'])}',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: PopupMenuButton(
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 20),
+                                SizedBox(width: 8),
+                                Text('Edit'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, size: 20, color: Colors.red),
+                                SizedBox(width: 8),
+                                Text('Delete', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'edit') {
+                            _editSchedule(schedule);
+                          } else if (value == 'delete') {
+                            _showDeleteConfirmation(schedule.id);
+                          }
+                        },
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          );
+        },
+      );
+    } else {
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('User-schedule')
+            .where('userId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error:  {snapshot.error}'));
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.schedule_outlined, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No access schedules yet',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: snapshot.data!.docs.length,
+            padding: const EdgeInsets.all(16),
+            itemBuilder: (context, index) {
+              final schedule = snapshot.data!.docs[index];
+              final data = schedule.data() as Map<String, dynamic>;
+
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.only(bottom: 16),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.all(16),
+                  title: Text(
+                    data['name'] ?? 'Unnamed Schedule',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today, size: 16),
+                          const SizedBox(width: 8),
+                          Text(data['days'].join(', ')),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${_formatTimeString(data['startTime'])} - ${_formatTimeString(data['endTime'])}',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
   }
 
   void _toggleSchedule(String scheduleId, bool value) async {

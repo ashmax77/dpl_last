@@ -1,0 +1,14 @@
+{
+  "resourceName": "raspi",
+  "policyUUID": "64b1d7df",
+  "bucketName": "dlpbucketfaces",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "NONE",
+  "groupAccess": {}
+}

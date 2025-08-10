@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need access to your gallery to select a photo for face registration.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to take a photo for face registration.</string>
 </dict>
 </plist>

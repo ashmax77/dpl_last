@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../services/user_service.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -69,6 +70,19 @@ class ProfilePage extends StatelessWidget {
                       ),
                       const Divider(),
                       _buildProfileItem(
+                        'Role',
+                        _getRoleDisplay(userData['role'], userData['firstUser']),
+                        Icons.admin_panel_settings_outlined,
+                      ),
+                      const Divider(),
+                      _buildProfileItem(
+                        'Status',
+                        userData['isOnline'] == true ? 'Online' : 'Offline',
+                        Icons.circle,
+                        valueColor: userData['isOnline'] == true ? Colors.green : Colors.grey,
+                      ),
+                      const Divider(),
+                      _buildProfileItem(
                         'Joined',
                         _formatTimestamp(userData['createdAt']),
                         Icons.calendar_today_outlined,
@@ -80,13 +94,14 @@ class ProfilePage extends StatelessWidget {
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () async {
-                  await FirebaseAuth.instance.signOut();
-                  if (context.mounted) {
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      '/login',
-                      (route) => false,
-                    );
+                  try {
+                    await UserService.logoutUser();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Logout error: $e')),
+                      );
+                    }
                   }
                 },
                 icon: const Icon(Icons.logout),
@@ -103,7 +118,7 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileItem(String label, String value, IconData icon) {
+  Widget _buildProfileItem(String label, String value, IconData icon, {Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -123,9 +138,10 @@ class ProfilePage extends StatelessWidget {
                 ),
                 Text(
                   value,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: valueColor,
                   ),
                 ),
               ],
@@ -134,6 +150,16 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _getRoleDisplay(String? role, bool? firstUser) {
+    if (firstUser == true) {
+      return 'Admin (First User)';
+    } else if (role == 'admin') {
+      return 'Admin';
+    } else {
+      return 'User';
+    }
   }
 
   String _formatTimestamp(dynamic timestamp) {

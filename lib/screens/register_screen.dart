@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/user_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -35,26 +36,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> registerUser(String email, String password) async {
     try {
-      // Create user in Firebase Authentication
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      // Save additional user details to Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userCredential.user!.uid)
-          .set({
-        'username': _usernameController.text.trim(),
-        'email': email,
-        'password':password,
-        'createdAt': FieldValue.serverTimestamp(),
-        'userId': userCredential.user!.uid,
-      });
-
-      print("User registered: ${userCredential.user!.email}");
+      await UserService.registerUser(
+        username: _usernameController.text.trim(),
+        email: email,
+        password: password,
+      );
     } catch (e) {
       print("Error: $e");
-      throw e; // Re-throw the error to be caught by _submitForm
+      throw e; 
     }
   }
 
@@ -73,7 +62,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } catch (e) {
         if (mounted) {
           setState(() => _isLoading = false);
-          // Show error dialog
           showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -105,15 +93,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.pop(context); // Close dialog
-                // Navigate back to login with user data
+                Navigator.pop(context); 
                 Navigator.pushReplacementNamed(
                   context, 
-                  '/login',
-                  arguments: {
-                    'email': _emailController.text.trim(),
-                    'password': _passwordController.text,
-                  },
+                  '/',
                 );
               },
             ),
