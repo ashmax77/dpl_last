@@ -14,6 +14,8 @@ import 'amplifyconfiguration.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 
+bool _isConfigured = false;
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
@@ -26,15 +28,22 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> _configureAmplifyPlugins() async {
-  try {
-    await Amplify.addPlugins([
-      AmplifyAuthCognito(),
-      AmplifyStorageS3(),
-    ]);
-    await Amplify.configure(amplifyconfig);
-  } catch (e) {
-    print('Amplify configuration failed: $e');
-  }
+  
+  if (_isConfigured) return;
+    try {
+      await Amplify.addPlugins([
+        AmplifyAuthCognito(),
+        AmplifyStorageS3(),
+      ]);
+
+      await Amplify.configure(amplifyconfig);
+      _isConfigured = true;
+      
+      safePrint('✅ Amplify configured successfully');
+    } catch (e) {
+      safePrint('❌ Error configuring Amplify: $e');
+      rethrow;
+    }
 }
 
 void main() async {
